@@ -29,6 +29,45 @@ def find_max_bid(graph, source):
             min_node = node
     return min_node
 
+def find_max_bid_without_node(graph, source, node_to_remove):
+    # find the node with max bid, there can be multiple nodes with same bid
+    G_temp = graph.copy()
+    # remove node_to_remove and all nodes such that, if node_to_remove is removed, then the node is not connected to the source
+    if type(node_to_remove) == list:
+        for node in node_to_remove:
+            G_temp.remove_node(node)
+    else:
+        G_temp.remove_node(node_to_remove)
+    for node in graph.nodes:
+        try:
+            if not nx.has_path(G_temp, source, node):
+                G_temp.remove_node(node)
+        except:
+            pass
+    print(G_temp.nodes)
+    max_bids = []
+    max_bid = 0
+    for node in G_temp.nodes:
+        if node[1] > max_bid:
+            max_bid = node[1]
+            max_bids = [node]
+        elif node[1] == max_bid:
+            max_bids.append((node[0], node[1]))
+        
+    # print(max_bids)
+    # find which node is closer to the source
+    min_distance = 100000
+    min_node = None
+    for node in max_bids:
+        distance = nx.shortest_path_length(G_temp, source, node)
+        if distance < min_distance:
+            min_distance = distance
+            min_node = node
+    
+    G_temp.clear()
+    del G_temp
+    return min_node
+
 
 def find_all_paths(graph, source, target):
     all_paths = list(nx.all_simple_paths(graph, source, target))
@@ -68,28 +107,93 @@ def find_sibling_set(graph, intersection, source, target):
     return sibling_set
 
 
+def calculate_nodes_in_subgraph(graph, node, source, target):
+    # print("node: ", node)
+    G_temp = graph.copy()
+    G_temp.remove_node(node) 
+    count = 1   
+    for node in graph.nodes:
+        try:
+            if not nx.has_path(G_temp, source, node):
+                G_temp.remove_node(node)
+                count += 1
+        except:
+            pass
+    G_temp.clear()
+    del G_temp
+    return count
 
 
 
+def calculate(graph, common_nodes, sibling_set, source, target):
+    length = len(common_nodes)
+    A = common_nodes
+    # print(A)
+    # Pi = [0] * length
+    # R = [0] * length
+    # p = [0] * length
+    Pi = {}
+    R = {}
+    p = {}
 
+    # P_auc = [0] * length
+    # P_auc[0] = 0
+    P_auc = {}
+    P_auc[common_nodes[0]] = 0
+    S_theta = 0
 
+    for j in range(1, length):
+        print("node removed: ", A[j])
+        P_auc[A[j]] = find_max_bid_without_node(graph, A[0], A[j])[1]
+        print(P_auc[A[j]])
+        S_aj = P_auc[A[j]] - P_auc[A[j-1]]
+        print("S_aj: ", S_aj)
+        X = sibling_set[A[j]].copy()
+        siblings = X.copy()
+        X.append(A[j])
+        print("X: ", X)
+        # print(calculate_nodes_in_subgraph(graph, A[j], source, target))
+        n_X = 0
+        for x in X:
+            n_X += calculate_nodes_in_subgraph(graph, x, source, target)
+        print("n_X: ", n_X)
 
+        for k in range(len(X)):
+            h_bar = find_max_bid_without_node(graph, source, X[k])
+            print("h_bar: ", h_bar)
+            intermediate_intersection = find_intersection(graph, source, find_all_paths(graph, source, h_bar))
+            print("intermediate_intersection: ", intermediate_intersection)
+            A_bar = intermediate_intersection
+            print("A_bar: ", A_bar)
+            try:
+                if A[j-1] == A_bar[j-1]:
+                    t = find_max_bid_without_node(graph, source, [A_bar[j],X[k]])[1]
+                    S_k = t - P_auc[A[j-1]]
+                else:
+                    S_k = 0
+            except:
+                S_k = 0
+            print("S_k: ", S_k)
+            print("length", length)
+            print("length of X", len(X))
+            R[X[k]] = calculate_nodes_in_subgraph(graph, X[k], source, target) / n_X * S_k
+            print("R[k]: ", R[X[k]])
+            p[X[k]] = -1 * R[X[k]]
+        
+        temp_sum = 0
+        for i in range(len(X)):
+            temp_sum += R[X[i]]
+        S_theta += S_aj - temp_sum
 
+        if A[j][1] >= P_auc[A[j]]:
+            Pi[A[j]] = 1
+            p[A[j]] = P_auc[A[j]] - R[A[j]]
+            break
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
+    print("Pi: ", Pi)
+    # print("R: ", R)
+    print("p: ", p)
 
 
 
@@ -199,9 +303,4 @@ if __name__ == '__main__':
     sibling_set = find_sibling_set(G, common_nodes, source, winner)
     print(sibling_set)
 
-    length = len(common_nodes)
-    A = common_nodes
-    # print(A)
-    Pi = [0] * length
-    R = [0] * length
-    p = [0] * length
+    calculate(G, common_nodes, sibling_set, source, winner)
