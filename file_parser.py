@@ -40,34 +40,45 @@ def atoi(s):
     return base * sign
 
 def parseFileGraphCreation(input_file):
+    G = nx.DiGraph()
+    node=dict()
+    source=('\0','-1')
     # open the file in read mode
     with open(input_file, 'r') as f:
-
-        G = nx.DiGraph()
-
         # read the file line by line
         for line in f:
             # split the line by space
             line = line.split()
 
             # print the line
-            # print(line)
+            # print(line,'aaaa')
 
-            if line[0] not in G:
-                G.add_node(line[0], valuation=atoi(line[1]))
-            else:
-                G.nodes[line[0]]["valuation"]=atoi(line[1])
+            # G.add_node((line[0], atoi(line[1])))
+            node[line[0]]=line[1]
+    f.close()
+
+    with open(input_file, 'r') as f:
+
+        for line in f:
+            # split the line by space
+            line = line.split()
+
+            # print the line
+            # print(line,'bbbb')
+
+            if(atoi(node[line[0]])==0):
+               source=(line[0],0)
 
             for i in range(2,len(line)):
-                if line[i] not in G:
-                    G.add_node(line[i])
-                G.add_edge(line[0], line[i])
+                G.add_edge((line[0],atoi(node[line[0]])),(line[i],atoi(node[line[i]])))     
 
-        # print(list(G.nodes(data=True)))
-        # nx.draw(G,with_labels=True)
-        # plt.show()
+    f.close()
 
-        return G
+    # print(list(G.nodes(data=True)))
+    # nx.draw(G,with_labels=True)
+    # plt.show()
+
+    return [G,source]  
             
 
             
